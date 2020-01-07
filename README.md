@@ -6,7 +6,7 @@ Scripts for analyzing 10x R2C2 data
 ## Formatting for Seurat ##
 [Seurat](https://satijalab.org/seurat/) has a Read10X function that takes a directory that contains three files: genes.tsv, barcodes.tsv, and matrix.mtx.
 Usually [Cell Ranger](https://github.com/10XGenomics/cellranger) (10X Genomics) outputs this file structure for you.
-The ```make_seurat_input.py``` script will replicate the output given by Cell Ranger when given an annotation file, barcode guide, and featureCounts (Subread) output.
+The ```make_seurat_input.py``` script will replicate the output given by Cell Ranger when given an annotation file, barcode guide, and [featureCounts](http://bioinf.wehi.edu.au/featureCounts/) (Subread) output.
 The script assumes that featureCounts was run on all cells in one command.
 
 #### Usage ####
