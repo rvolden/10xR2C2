@@ -109,8 +109,9 @@ def makeBC(inFile):
 
 def modifyFC(fcIn):
     '''
-    Reads the featureCounts output and transforms it into a workable format
-    need to change this so that it works well in the script
+    Reads the featureCounts output and throws it into a dictionary
+    countDict = {geneID: [0, 1, 0, 0, ...], ...}
+    The index of the list +1 is the cell #
     '''
     first = True
     countDict = {}
