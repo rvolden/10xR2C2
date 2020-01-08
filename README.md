@@ -43,10 +43,10 @@ This can be done using `make_cell_subreads.py`.
 
 #### Separating subreads into cells ####
 ```bash
-python3 make_cell_subreads.py path/to/demuxed/fastas all_subreads.fastq path/to/output
+python3 make_cell_subreads.py /path/to/demuxed/fastas all_subreads.fastq /path/to/output
 ```
 This will collect the base fasta headers for each cell and extract the associated subreads.
-It will output to the desired directory and add '_subs.fastq' to the original cell fasta file name.
+It will output to the desired directory and add `_subs.fastq` to the original cell fasta file name.
 
 ## Formatting for Seurat ##
 [Seurat](https://satijalab.org/seurat/) has a Read10X function that takes a directory that contains three files: genes.tsv, barcodes.tsv, and matrix.mtx.
@@ -68,7 +68,7 @@ python3 make_seurat_input.py -a gencode.v29.annotation.gtf -b bcGuide -e feature
 ```
 
 ## Cell to cell type ##
-The ```cell_to_celltype.py``` script is used by ```merge_psls.py```.
+The `cell_to_celltype.py` script is used by `merge_psls.py`.
 
 #### Usage ####
 ```bash
@@ -90,3 +90,12 @@ cell number \t cell type \t cell barcode
 ```
 
 **This script requires heavy modification to fit your dataset. View source code for details.**
+
+## Merging UMIs ##
+The point of merging UMIs for R2C2 data is to reduce redundancy as well as increase the accuracy for that molecule.
+UMI merging identifies all of the subreads that belong to that specific molecule to redo the consensus calling.
+This way, we can incorporate more subreads into our consensus calling.
+
+```bash
+python3 MergeUMIs10x.py -i /path/to/input -o /path/to/output -c config_file -m scores.mat -t nThreads
+```
