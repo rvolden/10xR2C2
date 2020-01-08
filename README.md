@@ -2,11 +2,44 @@
 Scripts for analyzing 10x R2C2 data
 
 ## Demultiplexing ##
+To preface, I'm well aware that this isn't the most efficient way of demuxing these reads.
+However, it works and isn't worth rewriting.
+For this, you need R2C2 reads and R2C2 10x reads.
+R2C2 reads are the full length consensus sequences, whereas the R2C2 10x reads are the beginning/end of the sequence that contains the cell barcode and UMI information.
+There are a few steps for demuxing 10x R2C2 reads:
+
+#### Determine which barcodes are the most frequent ####
+```bash
+python3 detBarcodes.py R2C2_10x_postprocessed.fasta 737K-august-2016.txt >1500_most_frequent_bcs.fasta
+```
+This takes postprocessed reads that contain the 10x barcode information, tallies the occurrences of each barcode, makes a rank ordered histogram of barcode counts, and prints a fasta of the 1500 most frequent barcodes.
+The figure making part will need to be uncommented if this gets used with new data, as the number of barcodes is determined manually.
+The most frequent barcodes are then given to `Demultiplex_R2C2_reads_kmerBased.py` to determine which reads belong to which barcodes.
+
+```bash
+python3 Demultiplex_R2C2_reads_kmerBased.py -i R2C2_10x_postprocessed.fasta -o . -n 1500_most_frequent_bcs.fasta
+```
+This script outputs `kmer_demuxed.fasta`, which is `R2C2_10x_postprocessed.fasta` with the corresponding barcode added to the header.
+The reads are going to be demuxed into cells using the 10x postprocessed fasta (contains cell barcodes).
+I do this by reading the file with the barcode data and the full length read at the same time.
+To enable that, I need to match the order between the 10x sequences and the full length consensus sequences.
+
+```bash
+python3 match_fastas.py kmer_demuxed.fasta R2C2_postprocessed.fasta >R2C2_matched.fasta
+```
+
+After matching the fasta files, you can actually separate the reads into individual cells.
+
+```bash
+python3 demux_nano.py 1500_most_frequent_bcs.fasta kmer_demuxed.fasta R2C2_matched.fasta
+```
+This will write cell fasta files to an output directory called `demuxed`.
+It will also create a bcGuide, which is needed for downstream analysis.
 
 ## Formatting for Seurat ##
 [Seurat](https://satijalab.org/seurat/) has a Read10X function that takes a directory that contains three files: genes.tsv, barcodes.tsv, and matrix.mtx.
 Usually [Cell Ranger](https://github.com/10XGenomics/cellranger) (10X Genomics) outputs this file structure for you.
-The ```make_seurat_input.py``` script will replicate the output given by Cell Ranger when given an annotation file, barcode guide, and [featureCounts](http://bioinf.wehi.edu.au/featureCounts/) (Subread) output.
+The `make_seurat_input.py` script will replicate the output given by Cell Ranger when given an annotation file, barcode guide, and [featureCounts](http://bioinf.wehi.edu.au/featureCounts/) (Subread) output.
 The script assumes that featureCounts was run on all cells in one command.
 
 #### Usage ####
