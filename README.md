@@ -38,6 +38,15 @@ python3 demux_nano.py 1500_most_frequent_bcs.fasta kmer_demuxed.fasta R2C2_match
 ```
 This will write cell fasta files to an output directory called `demuxed`.
 It will also create a bcGuide, which is needed for downstream analysis.
+To merge and analyze specific loci, we need to also demultiplex the subreads associated with each consensus read.
+This can be done using `make_cell_subreads.py`.
+
+#### Separating subreads into cells ####
+```bash
+python3 make_cell_subreads.py path/to/demuxed/fastas all_subreads.fastq path/to/output
+```
+This will collect the base fasta headers for each cell and extract the associated subreads.
+It will output to the desired directory and add '_subs.fastq' to the original cell fasta file name.
 
 ## Formatting for Seurat ##
 [Seurat](https://satijalab.org/seurat/) has a Read10X function that takes a directory that contains three files: genes.tsv, barcodes.tsv, and matrix.mtx.
