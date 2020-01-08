@@ -10,9 +10,9 @@ Assumes the demux fasta file has fewer lines than the flc file.
 
 Usage:
 python3 match_fastas.py \
-    combined_demuxed.fasta \
-    combined_flc_sequences.fasta \
-    > combined_flc_matched.fasta
+    kmer_demuxed.fasta \
+    R2C2_postprocessed.fasta \
+    >R2C2_matched.fasta
 '''
 
 import sys
