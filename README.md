@@ -16,6 +16,7 @@ This takes postprocessed reads that contain the 10x barcode information, tallies
 The figure making part will need to be uncommented if this gets used with new data, as the number of barcodes is determined manually.
 The most frequent barcodes are then given to `Demultiplex_R2C2_reads_kmerBased.py` to determine which reads belong to which barcodes.
 
+#### Add barcoding info to 10x reads ####
 ```bash
 python3 Demultiplex_R2C2_reads_kmerBased.py -i R2C2_10x_postprocessed.fasta -o . -n 1500_most_frequent_bcs.fasta
 ```
@@ -24,12 +25,14 @@ The reads are going to be demuxed into cells using the 10x postprocessed fasta (
 I do this by reading the file with the barcode data and the full length read at the same time.
 To enable that, I need to match the order between the 10x sequences and the full length consensus sequences.
 
+#### Match fasta files ####
 ```bash
 python3 match_fastas.py kmer_demuxed.fasta R2C2_postprocessed.fasta >R2C2_matched.fasta
 ```
 
 After matching the fasta files, you can actually separate the reads into individual cells.
 
+#### Separate reads into cells ####
 ```bash
 python3 demux_nano.py 1500_most_frequent_bcs.fasta kmer_demuxed.fasta R2C2_matched.fasta
 ```
