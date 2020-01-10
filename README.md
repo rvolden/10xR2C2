@@ -94,7 +94,17 @@ cell number \t cell type \t cell barcode
 ## Merging UMIs ##
 The point of merging UMIs for R2C2 data is to reduce redundancy as well as increase the accuracy for that molecule.
 UMI merging identifies all of the subreads that belong to that specific molecule to redo the consensus calling.
-This way, we can incorporate more subreads into our consensus calling.
+We have two different UMI merging scripts, one for the R2C2 splint UMI, one for the 10X barcode UMI.
+Before the R2C2 UMI merging script, UMIs need to be extracted from the reads.
+This is done by using the `ExtractUMIs.py` script.
+
+```bash
+python3 ExtractUMIs.py -i5 5primeAdapter.fasta -i3 3primeAdapter.fasta -i consensus_reads.fasta -o /path/to/output -x splint_number >umi_file.txt
+```
+
+```bash
+python3 MergeUMIs.py -f consensus_reads.fasta -s subreads.fastq -o /path/to/output -u umi_file.txt -c config -m scores.mat
+```
 
 ```bash
 python3 MergeUMIs10x.py -i /path/to/input -o /path/to/output -c config_file -m scores.mat -t nThreads
