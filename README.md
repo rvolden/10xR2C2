@@ -1,6 +1,11 @@
 # 10xR2C2
 Scripts for analyzing 10x R2C2 data
 
+Contents
+- [Demultiplexing](#Demultiplexing)
+- [Formatting for Seurat](#Formatting for Seurat)
+- [Merging UMIs](#Merging UMIs)
+
 ## Demultiplexing ##
 To preface, I'm well aware that this isn't the most efficient way of demuxing these reads.
 However, it works and isn't worth rewriting.
