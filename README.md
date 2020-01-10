@@ -53,7 +53,7 @@ python3 make_cell_subreads.py /path/to/demuxed/fastas all_subreads.fastq /path/t
 This will collect the base fasta headers for each cell and extract the associated subreads.
 It will output to the desired directory and add `_subs.fastq` to the original cell fasta file name.
 
-## Formatting for Seurat ## <a name="seurat"></a>
+## Formatting for Seurat <a name="seurat"></a>
 [Seurat](https://satijalab.org/seurat/) has a Read10X function that takes a directory that contains three files: genes.tsv, barcodes.tsv, and matrix.mtx.
 Usually [Cell Ranger](https://github.com/10XGenomics/cellranger) (10X Genomics) outputs this file structure for you.
 The `make_seurat_input.py` script will replicate the output given by Cell Ranger when given an annotation file, barcode guide, and [featureCounts](http://bioinf.wehi.edu.au/featureCounts/) (Subread) output.
@@ -96,7 +96,7 @@ cell number \t cell type \t cell barcode
 
 **This script requires heavy modification to fit your dataset. View source code for details.**
 
-## Merging UMIs ## <a name="umis"></a>
+## Merging UMIs <a name="umis"></a>
 The point of merging UMIs for R2C2 data is to reduce redundancy as well as increase the accuracy for that molecule.
 UMI merging identifies all of the subreads that belong to that specific molecule to redo the consensus calling.
 We have two different UMI merging scripts, one for the R2C2 splint UMI, one for the 10X barcode UMI.
