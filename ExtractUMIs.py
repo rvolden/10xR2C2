@@ -60,7 +60,6 @@ def reverse_complement(sequence):
   return Seq
 
 def find_UMI(sequence, frame1, frame2):
-
     UMI = ''
     for i in range(0, max(len(sequence)-25, 1), 1):
         match1 = sequence[i:i+5]
