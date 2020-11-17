@@ -3,6 +3,7 @@ import editdistance
 import numpy as np
 import os
 import sys
+import mappy as mm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-f', '--fasta_file', type=str)
@@ -134,43 +135,16 @@ def determine_consensus(name, fasta, fastq, temp_folder):
     return corrected_consensus, repeats, combined_name.strip('-'), round(np.average(qual), 2), int(np.average(raw)), int(np.average(before)), int(np.average(after))
 
 def read_subreads(seq_file, chrom_reads):
-    lineNum = 0
-    lastPlus = False
-    for line in open(seq_file):
-        line = line.rstrip()
-        if not line:
-            continue
-        # make an entry as a list and append the header to that list
-        if lineNum % 4 == 0 and line[0] == '@':
-            if lastPlus and root_name in chrom_reads:  # chrom_reads needs to contain root_names
-                chrom_reads[root_name].append((name,seq,qual))
-            name = line[1:]
-            root_name = name.split('_')[0]
-        if lineNum % 4 == 1:
-            seq = line
-        if lineNum % 4 == 2:
-            lastPlus = True
-        if lineNum % 4 == 3 and lastPlus:
-            qual = line
-        lineNum += 1
+    for read in mm.fastx_read(seq_file, read_comment=False):
+        root_name = read[0].split('_')[0]
+        if root_name in chrom_reads:
+            chrom_reads[root_name].append(read)
     return chrom_reads
 
 def read_fasta(infile):
     reads = {}
-    sequence = ''
-    for line in open(infile):
-      if line:
-        a = line.strip()
-        if len(a) > 0:
-            if a[0] == '>':
-                if sequence != '':
-                    reads[name] = sequence
-                name = a[1:]
-                sequence = ''
-            else:
-                sequence += a
-    if sequence != '':
-        reads[name] = sequence
+    for read in mm.fastx_read(infile, read_comment=False):
+        reads[read[0]] = read[1]
     return reads
 
 def read_fastq_file(seq_file):
@@ -185,25 +159,13 @@ def read_fastq_file(seq_file):
         seq_length : int, length of the sequence
     '''
     read_list = []
-    length = 0
-    for line in open(seq_file):
-        length += 1
-    lineNum = 0
-    seq_file_open = open(seq_file, 'r')
-    while lineNum < length:
-        name_root = seq_file_open.readline().strip()[1:].split('_')
-        name, seed = name_root[0], int(name_root[1])
-        seq = seq_file_open.readline().strip()
-        plus = seq_file_open.readline().strip()
-        qual = seq_file_open.readline().strip()
-        quals = []
-        for character in qual:
-            number = ord(character) - 33
-            quals.append(number)
-        average_quals = np.average(quals)
-        seq_length = len(seq)
-        read_list.append((name, seed, seq, qual, average_quals, seq_length))
-        lineNum += 4
+    for read in mm.fastx_read(seq_file, read_comment=False):
+        split_name = read[0].split('_')
+        name, seed = split_name[0], 0
+        seq, qual = read[1], read[2]
+        avg_q = np.average([ord(x)-33 for x in qual])
+        s_len = len(seq)
+        read_list.append((name, seed, seq, qual, avg_q, s_len))
     return read_list
 
 def make_consensus(Molecule, UMI_number, subreads):
