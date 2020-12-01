@@ -79,14 +79,15 @@ def determine_consensus(name, fasta, fastq, temp_folder):
     overlap = temp_folder + '/overlaps.sam'
     pairwise = temp_folder + '/prelim_consensus.fasta'
 
-    max_coverage = 0
+    max_coverage, repeats = 0, 0
     reads = read_fasta(out_F)
-    repeats = 0
-    qual = []
-    raw = []
-    before = []
+    qual, raw, before, after = [], [], [], []
 
-    after = []
+    '''
+    replace combined name with an association file
+    this should just be tab separated with the IDs of UMI combined reads
+    '''
+
     combined_name = ''
     for read in reads:
         info = read.split('_')
@@ -100,37 +101,31 @@ def determine_consensus(name, fasta, fastq, temp_folder):
         after.append(int(info[5].split('|')[0]))
 
         if coverage >= max_coverage:
-             best = read
-             max_coverage = coverage
+            best = read
+            max_coverage = coverage
 
     out_cons_file = open(poa_cons, 'w')
     out_cons_file.write('>' + best + '\n' + reads[best].replace('-', '') + '\n')
     out_cons_file.close()
 
     final = poa_cons
-    for i in np.arange(1, 2, 1):
-        try:
-            if i == 1:
-                input_cons = poa_cons
-                output_cons = poa_cons.replace('.fasta', '_' + str(i) + '.fasta')
-            else:
-                input_cons = poa_cons.replace('.fasta', '_' + str(i-1) + '.fasta')
-                output_cons = poa_cons.replace('.fasta', '_' + str(i) + '.fasta')
+    input_cons = poa_cons
+    output_cons = poa_cons.replace('.fasta', '_1.fasta')
 
-            os.system('%s --secondary=no -ax map-ont \
-                      %s %s > %s 2> ./minimap2_messages.txt' \
-                      % (minimap2, input_cons, out_Fq, overlap))
-            os.system('%s -q 5 -t 1 \
-                       %s %s %s >%s 2>./racon_messages.txt' \
-                       %(racon, out_Fq, overlap, input_cons, output_cons))
-            final = output_cons
-        except:
-            pass
+    os.system('%s --secondary=no -ax map-ont \
+              %s %s > %s 2> ./minimap2_messages.txt'
+              % (minimap2, input_cons, out_Fq, overlap))
+    os.system('%s -q 5 -t 1 \
+               %s %s %s >%s 2>./racon_messages.txt'
+               %(racon, out_Fq, overlap, input_cons, output_cons))
+    final = output_cons
 
     print(final)
     reads = read_fasta(final)
     for read in reads:
         corrected_consensus = reads[read]
+
+    print(corrected_consensus, repeats, combined_name)
 
     return corrected_consensus, repeats, combined_name.strip('-'), round(np.average(qual), 2), int(np.average(raw)), int(np.average(before)), int(np.average(after))
 
@@ -170,7 +165,7 @@ def read_fastq_file(seq_file):
 
 def make_consensus(Molecule, UMI_number, subreads):
     subread_file = path + '/temp_subreads.fastq'
-    fastaread_file = path + '/temp_consensusreads.fasta'
+    fastaread_file = path + '/temp_consensus_reads.fasta'
     subs = open(subread_file, 'w')
     fasta = open(fastaread_file, 'w')
     for read in Molecule:
@@ -179,22 +174,19 @@ def make_consensus(Molecule, UMI_number, subreads):
         root_name = read[1:].split('_')[0]
         raw = subreads[root_name]
         for entry in raw:
-            subs.write(entry[0] + '\n' + entry[1] + '\n+\n' + entry[2] + '\n')
+            subs.write('@' + entry[0] + '\n' + entry[1] + '\n+\n' + entry[2] + '\n')
     subs.close()
     fasta.close()
     if len(read_fastq_file(subread_file)) > 0:
         corrected_consensus, repeats, combined_name, qual, raw, before, after = determine_consensus(str(UMI_number), fastaread_file, subread_file, path)
         return '>%s_%s_%s_%s_%s_%s|%s\n%s\n' %(combined_name.strip('-'), str(qual), str(raw), str(repeats), str(before), str(after), str(UMI_number), corrected_consensus)
     else:
-        return 'nope'
+        return ''
 
 def parse_reads(reads, sub_reads, UMIs):
-    UMI_group = 0
-    group_dict = {}
+    group_dict, chrom_reads= {}, {}
     groups = []
-    chrom_reads = {}
-    previous_start = 0
-    previous_end = 0
+    UMI_group, previous_start, previous_end = 0, 0, 0
     for name, group_number in sub_reads.items():
         root_name = name.split('_')[0]
         UMI5 = UMIs[name][0]
@@ -227,142 +219,127 @@ def group_reads(groups, reads, subreads, UMIs, final, final_UMI_only, matched_re
                 print(group[0][1], group[0][2])
                 print(group[1][1], group[1][2])
 
-            for i in range(0, len(group), 1):
+            for i in range(len(group)):
                 UMI_counter += 1
                 UMI_dict[group[i][0]].add(UMI_counter)
-                for j in range(i+1, len(group), 1):
-                  if np.abs(len(group[i][3])-len(group[j][3]))/len(group[i][3]) < 0.1:
-                    status = 'both'
-                    if len(group[i][1]) > 0 and len(group[j][1]) > 0:
-                        dist5 = editdistance.eval(group[i][1], group[j][1])
+                for j in range(i+1, len(group)):
+                    if np.abs(len(group[i][3])-len(group[j][3]))/len(group[i][3]) < 0.1:
+                        status = 'both'
+                        if len(group[i][1]) > 0 and len(group[j][1]) > 0:
+                            dist5 = editdistance.eval(group[i][1], group[j][1])
 
-                    else:
-                        dist5 = 15
-                        status = 'single'
-                    if len(group[i][2]) > 0 and len(group[j][2]) > 0:
-                        dist3 = editdistance.eval(group[i][2], group[j][2])
-                    else:
-                        dist3 = 15
-                        status = 'single'
+                        else:
+                            dist5 = 15
+                            status = 'single'
+                        if len(group[i][2]) > 0 and len(group[j][2]) > 0:
+                            dist3 = editdistance.eval(group[i][2], group[j][2])
+                        else:
+                            dist3 = 15
+                            status = 'single'
 
-                    match = 0
-                    if status == 'both':
-                        if dist5 + dist3 <= 2:
-                            match = 1
-                    if match == 1:
-                        UMI_dict[group[j][0]] = UMI_dict[group[j][0]]|UMI_dict[group[i][0]]
-                        UMI_dict[group[i][0]] = UMI_dict[group[j][0]]|UMI_dict[group[i][0]]
+                        match = 0
+                        if status == 'both':
+                            if dist5 + dist3 <= 2:
+                                match = 1
+                        if match == 1:
+                            UMI_dict[group[j][0]] = UMI_dict[group[j][0]]|UMI_dict[group[i][0]]
+                            UMI_dict[group[i][0]] = UMI_dict[group[j][0]]|UMI_dict[group[i][0]]
 
             for i in range(0, len(group), 1):
                 for j in range(i+1, len(group), 1):
-                  if np.abs(len(group[i][3])-len(group[j][3]))/len(group[i][3]) < 0.1:
-                    status = 'both'
-                    if len(group[i][1]) > 0 and len(group[j][1]) > 0:
-                        dist5 = editdistance.eval(group[i][1], group[j][1])
-                    else:
-                        dist5 = 15
-                        status = 'single'
-                    if len(group[i][2]) > 0 and len(group[j][2]) > 0:
-                        dist3 = editdistance.eval(group[i][2], group[j][2])
-                    else:
-                        dist3 = 15
-                        status = 'single'
+                    if np.abs(len(group[i][3])-len(group[j][3]))/len(group[i][3]) < 0.1:
+                        status = 'both'
+                        if len(group[i][1]) > 0 and len(group[j][1]) > 0:
+                            dist5 = editdistance.eval(group[i][1], group[j][1])
+                        else:
+                            dist5 = 15
+                            status = 'single'
+                        if len(group[i][2]) > 0 and len(group[j][2]) > 0:
+                            dist3 = editdistance.eval(group[i][2], group[j][2])
+                        else:
+                            dist3 = 15
+                            status = 'single'
 
-                    match = 0
-                    if status == 'both':
-                        if dist5 + dist3 <= 2:
-                            match = 1
-                    if match == 1:
-                        UMI_dict[group[j][0]] = UMI_dict[group[j][0]]|UMI_dict[group[i][0]]
-                        UMI_dict[group[i][0]] = UMI_dict[group[j][0]]|UMI_dict[group[i][0]]
+                        match = 0
+                        if status == 'both':
+                            if dist5 + dist3 <= 2:
+                                match = 1
+                        if match == 1:
+                            UMI_dict[group[j][0]] = UMI_dict[group[j][0]]|UMI_dict[group[i][0]]
+                            UMI_dict[group[i][0]] = UMI_dict[group[j][0]]|UMI_dict[group[i][0]]
 
             for entry in UMI_dict:
-                 counter_set = UMI_dict[entry]
-                 if not set_dict.get(tuple(counter_set)):
-                     UMI_group += 1
-                     set_dict[tuple(counter_set)] = UMI_group
+                counter_set = UMI_dict[entry]
+                if not set_dict.get(tuple(counter_set)):
+                    UMI_group += 1
+                    set_dict[tuple(counter_set)] = UMI_group
 
             read_list = []
             for i in range(0, len(group), 1):
-                    UMI_number = set_dict[tuple(UMI_dict[group[i][0]])]
-                    read_list.append(('>%s|%s\n%s\n' % (group[i][0], str(UMI_number), group[i][3]), UMI_number, group[i][1], group[i][2]))
+                UMI_number = set_dict[tuple(UMI_dict[group[i][0]])]
+                read_list.append(('>%s|%s\n%s\n' % (group[i][0], str(UMI_number), group[i][3]), UMI_number, group[i][1], group[i][2]))
 
             previous_UMI = ''
             Molecule = set()
             for read, UMI_number, umi5, umi3 in sorted(read_list, key=lambda x:int(x[1])):
-                    matched_reads.write(str(UMI_number) + '\t' + read.split('|')[0] + '\t' + umi5 + '\t' + umi3 + '\n')
-                    if UMI_number != previous_UMI:
-                         if len(Molecule) == 1:
-                             final.write(list(Molecule)[0])
-                         elif len(Molecule) > 1:
-                             new_read = make_consensus(list(Molecule), previous_UMI, subreads)
-                             if new_read != 'nope':
-                                 final.write(new_read)
-                                 final_UMI_only.write(new_read)
-                         Molecule = set()
-                         Molecule.add(read)
-                         previous_UMI = UMI_number
+                matched_reads.write(str(UMI_number) + '\t' + read.split('|')[0] + '\t' + umi5 + '\t' + umi3 + '\n')
+                if UMI_number != previous_UMI:
+                    if len(Molecule) == 1:
+                        final.write(list(Molecule)[0])
+                    elif len(Molecule) > 1:
+                        new_read = make_consensus(list(Molecule), previous_UMI, subreads)
+                        if not new_read:
+                            continue
+                        final.write(new_read)
+                        final_UMI_only.write(new_read)
+                    Molecule = set()
+                    Molecule.add(read)
+                    previous_UMI = UMI_number
 
-                    elif UMI_number == previous_UMI:
-                         Molecule.add(read)
+                elif UMI_number == previous_UMI:
+                    Molecule.add(read)
 
             if len(Molecule) == 1:
                 final.write(list(Molecule)[0])
             elif len(Molecule) > 1:
                 new_read = make_consensus(list(Molecule), previous_UMI, subreads)
-                if new_read != 'nope':
-                    print('new_read', new_read)
-                    print('written')
-                    final.write(new_read)
-                    print('wrote')
-                    final_UMI_only.write(new_read)
-                    print('wrote')
+                if not new_read:
+                    continue
+                print('new_read', new_read)
+                print('written')
+                final.write(new_read)
+                print('wrote')
+                final_UMI_only.write(new_read)
+                print('wrote')
         elif len(group) > 0:
             UMI_group += 1
             final.write('>%s|%s\n%s\n' % (group[0][0], str(UMI_group), group[0][3]))
     print(group_counter)
 
 def read_UMIs(UMI_file):
-    UMI_dict = {}
-    group_dict = {}
-    kmer_dict = {}
+    UMI_dict, group_dict, kmer_dict = {}, {}, {}
     group_number = 0
     for line in open(UMI_file):
-        a = line.strip().split('\t')
-        name = a[0]
-        try:
-            UMI5 = a[1]
-        except:
-            UMI5 = ''
-
-        try:
-            UMI3 = a[2]
-        except:
-            UMI3 = ''
-
-        kmer1 = ''
-        kmer2 = ''
-        kmer3 = ''
-        kmer4 = ''
+        a = line.strip('\n').split('\t')
+        name, UMI5, UMI3 = a[0], a[1], a[2]
+        kmer_list = ['', '', '', '']
 
         UMI_dict[name] = (UMI5, UMI3)
         if UMI5[5:10] == 'TATAT':
-            kmer1 = UMI5[:5]
-            kmer2 = UMI5[10:]
+            kmer_list[0] = UMI5[:5]
+            kmer_list[1] = UMI5[10:]
         if UMI3[5:10] == 'ATATA':
-            kmer3 = UMI3[:5]
-            kmer4 = UMI3[10:]
+            kmer_list[2] = UMI3[:5]
+            kmer_list[3] = UMI3[10:]
 
         combination_list = []
-        kmer_list = [kmer1, kmer2, kmer3, kmer4]
-        for x in [0, 1, 2, 3]:
-            for y in [0, 1, 2, 3]:
-                if x < y:
-                    first_kmer = kmer_list[x]
-                    second_kmer = kmer_list[y]
-                    if first_kmer != '' and second_kmer != '':
-                        combination = '_' * x+first_kmer + '_' * (y-x)+second_kmer + '_' * (3-y)
-                        combination_list.append(combination)
+        for x in range(4):
+            for y in range(x+1, 4):
+                first_kmer = kmer_list[x]
+                second_kmer = kmer_list[y]
+                if first_kmer != '' and second_kmer != '':
+                    combination = '_' * x+first_kmer + '_' * (y-x)+second_kmer + '_' * (3-y)
+                    combination_list.append(combination)
         match = ''
         for combination in combination_list:
             if combination in kmer_dict:
@@ -377,13 +354,12 @@ def read_UMIs(UMI_file):
             for combination in combination_list:
                 kmer_dict[combination] = match
         group_dict[match].append(name)
-
     return group_dict, UMI_dict
 
 def processing(reads, sub_reads, UMIs, groups, final, final_UMI_only, matched_reads):
     annotated_groups, chrom_reads = parse_reads(reads, sub_reads, UMIs)
     print('reading subreads')
-    subreads = read_subreads(subreads_file,chrom_reads)
+    subreads = read_subreads(subreads_file, chrom_reads)
     print('grouping and merging consensus reads')
     group_reads(annotated_groups, reads, subreads, UMIs, final, final_UMI_only, matched_reads)
 
@@ -408,4 +384,5 @@ def main():
             sub_reads = {}
     processing(reads, sub_reads, UMIs, groups, final, final_UMI_only, matched_reads)
 
-main()
+if __name__ == '__main__':
+    main()
