@@ -4,6 +4,7 @@ import numpy as np
 import os
 import sys
 import mappy as mm
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-f', '--fasta_file', type=str)
@@ -83,17 +84,14 @@ def determine_consensus(name, fasta, fastq, temp_folder):
     reads = read_fasta(out_F)
     qual, raw, before, after = [], [], [], []
 
-    '''
-    replace combined name with an association file
-    this should just be tab separated with the IDs of UMI combined reads
-    '''
-
-    combined_name = ''
+    header_log = path + 'header_associations.tsv'
+    header_fh = open(header_log, 'a+')
+    headers = []
     for read in reads:
         info = read.split('_')
-        print(info)
+        # print(info)
         coverage = int(info[3])
-        combined_name += '-' + info[0]
+        headers.append(info[0])
         qual.append(float(info[1]))
         raw.append(int(info[2]))
         repeats += int(info[3])
@@ -103,6 +101,9 @@ def determine_consensus(name, fasta, fastq, temp_folder):
         if coverage >= max_coverage:
             best = read
             max_coverage = coverage
+
+    print('\t'.join(headers), file=header_fh)
+    header_fh.close()
 
     out_cons_file = open(poa_cons, 'w')
     out_cons_file.write('>' + best + '\n' + reads[best].replace('-', '') + '\n')
@@ -120,14 +121,12 @@ def determine_consensus(name, fasta, fastq, temp_folder):
                %(racon, out_Fq, overlap, input_cons, output_cons))
     final = output_cons
 
-    print(final)
+    # print(final)
     reads = read_fasta(final)
     for read in reads:
         corrected_consensus = reads[read]
 
-    print(corrected_consensus, repeats, combined_name)
-
-    return corrected_consensus, repeats, combined_name.strip('-'), round(np.average(qual), 2), int(np.average(raw)), int(np.average(before)), int(np.average(after))
+    return corrected_consensus, repeats, headers[0], round(np.average(qual), 2), int(np.average(raw)), int(np.average(before)), int(np.average(after))
 
 def read_subreads(seq_file, chrom_reads):
     for read in mm.fastx_read(seq_file, read_comment=False):
@@ -170,7 +169,7 @@ def make_consensus(Molecule, UMI_number, subreads):
     fasta = open(fastaread_file, 'w')
     for read in Molecule:
         fasta.write(read)
-        print(read)
+        # print(read)
         root_name = read[1:].split('_')[0]
         raw = subreads[root_name]
         for entry in raw:
@@ -178,8 +177,8 @@ def make_consensus(Molecule, UMI_number, subreads):
     subs.close()
     fasta.close()
     if len(read_fastq_file(subread_file)) > 0:
-        corrected_consensus, repeats, combined_name, qual, raw, before, after = determine_consensus(str(UMI_number), fastaread_file, subread_file, path)
-        return '>%s_%s_%s_%s_%s_%s|%s\n%s\n' %(combined_name.strip('-'), str(qual), str(raw), str(repeats), str(before), str(after), str(UMI_number), corrected_consensus)
+        corrected_consensus, repeats, name, qual, raw, before, after = determine_consensus(str(UMI_number), fastaread_file, subread_file, path)
+        return '>%s_%s_%s_%s_%s_%s|%s\n%s\n' %(name, str(qual), str(raw), str(repeats), str(before), str(after), str(UMI_number), corrected_consensus)
     else:
         return ''
 
@@ -199,11 +198,11 @@ def parse_reads(reads, sub_reads, UMIs):
     for group_number in sorted(group_dict):
         group = group_dict[group_number]
         groups.append(list(set(group)))
-    return groups,chrom_reads
+    return groups, chrom_reads
 
 def group_reads(groups, reads, subreads, UMIs, final, final_UMI_only, matched_reads):
     UMI_group = 0
-    print(len(groups))
+    # print(len(groups))
     for group in groups:
         group = list(set(group))
         UMI_dict = {}
@@ -211,13 +210,13 @@ def group_reads(groups, reads, subreads, UMIs, final, final_UMI_only, matched_re
         group_counter = 0
         if len(group) > 1:
             group_counter += 1
-            print('test', group_counter, len(group))
+            # print('test', group_counter, len(group))
             UMI_counter = 0
             for i in range(0, len(group), 1):
                 UMI_dict[group[i][0]] = set()
-            if len(group) == 2:
-                print(group[0][1], group[0][2])
-                print(group[1][1], group[1][2])
+            # if len(group) == 2:
+            #     print(group[0][1], group[0][2])
+            #     print(group[1][1], group[1][2])
 
             for i in range(len(group)):
                 UMI_counter += 1
@@ -305,16 +304,16 @@ def group_reads(groups, reads, subreads, UMIs, final, final_UMI_only, matched_re
                 new_read = make_consensus(list(Molecule), previous_UMI, subreads)
                 if not new_read:
                     continue
-                print('new_read', new_read)
-                print('written')
+                # print('new_read', new_read)
+                # print('written')
                 final.write(new_read)
-                print('wrote')
+                # print('wrote')
                 final_UMI_only.write(new_read)
-                print('wrote')
+                # print('wrote')
         elif len(group) > 0:
             UMI_group += 1
             final.write('>%s|%s\n%s\n' % (group[0][0], str(UMI_group), group[0][3]))
-    print(group_counter)
+    # print(group_counter)
 
 def read_UMIs(UMI_file):
     UMI_dict, group_dict, kmer_dict = {}, {}, {}
@@ -358,9 +357,9 @@ def read_UMIs(UMI_file):
 
 def processing(reads, sub_reads, UMIs, groups, final, final_UMI_only, matched_reads):
     annotated_groups, chrom_reads = parse_reads(reads, sub_reads, UMIs)
-    print('reading subreads')
+    # print('reading subreads')
     subreads = read_subreads(subreads_file, chrom_reads)
-    print('grouping and merging consensus reads')
+    # print('grouping and merging consensus reads')
     group_reads(annotated_groups, reads, subreads, UMIs, final, final_UMI_only, matched_reads)
 
 def main():
@@ -373,12 +372,12 @@ def main():
     reads = read_fasta(fasta_file)
     count = 0
     sub_reads = {}
-    for group in sorted(groups):
+    for group in tqdm(sorted(groups)):
         count += len(groups[group])
         for name in groups[group]:
             sub_reads[name] = group
         if count > 500000:
-            print('processing')
+            # print('processing')
             processing(reads, sub_reads, UMIs, groups, final, final_UMI_only, matched_reads)
             count = 0
             sub_reads = {}
