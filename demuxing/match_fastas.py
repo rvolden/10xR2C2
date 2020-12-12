@@ -24,8 +24,8 @@ def readFasta(inFile):
         if not line:
             continue
         if line.startswith('>'):
-            readDict[line[1:]] = ''
-            lastHead = line[1:]
+            lastHead = line[1:].split('_')[0]
+            readDict[lastHead] = ''
         else:
             readDict[lastHead] += line
     return readDict
@@ -34,8 +34,8 @@ def readDemux(inFile, flcDict):
     for line in open(inFile):
         line = line.rstrip()
         if line.startswith('>'):
-            header = line[1:].split('|')[0]
-            print('>' + header)
+            header = line[1:].split('_')[0]
+            print('>' + line[1:].split('|')[0])
             print(flcDict[header])
 
 def main():
