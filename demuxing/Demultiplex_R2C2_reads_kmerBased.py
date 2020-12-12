@@ -15,6 +15,7 @@ python3 Demultiplex_R2C2_reads_kmerBased.py \
 import sys
 import argparse
 import editdistance as ld
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-i', '--input_fasta_file', type=str)
@@ -63,9 +64,9 @@ def get_kmer_list(bc):
 
 def demultiplex(reads, bcKmerDict):
     indexed_reads, counter = {}, 0
-    for read, complete_sequence in reads.items():
-        if counter % 10000 == 0:
-            print(str(counter) + ' of ' + str(len(reads)))
+    for read, complete_sequence in tqdm(reads.items()):
+        # if counter % 10000 == 0:
+        #     print(str(counter) + ' of ' + str(len(reads)))
         sequence = complete_sequence[:16]
 
         bc_set = set()
