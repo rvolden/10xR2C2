@@ -62,7 +62,7 @@ def determine_consensus(name, fasta, fastq, temp_folder):
     '''Aligns and returns the consensus'''
     corrected_consensus = ''
     out_F = fasta
-    fastq_reads = read_fastq_file(fastq)
+    fastq_reads = read_fastq_file(fastq, False)
     out_Fq = temp_folder + '/subsampled.fastq'
     out = open(out_Fq, 'w')
     indexes = np.random.choice(np.arange(0, len(fastq_reads), 1), min(len(fastq_reads), subsample), replace=False)
@@ -72,7 +72,7 @@ def determine_consensus(name, fasta, fastq, temp_folder):
         subsample_fastq_reads.append(fastq_reads[index])
 
     for read in subsample_fastq_reads:
-        out.write('@' + read[0] + '_' + str(read[1]) + '\n' + read[2] + '\n+\n' + read[3] + '\n')
+        out.write('@' + read[0] + '\n' + read[1] + '\n+\n' + read[2] + '\n')
     out.close()
 
     poa_cons = temp_folder + '/consensus.fasta'
@@ -132,7 +132,8 @@ def read_subreads(seq_file, chrom_reads):
     for read in mm.fastx_read(seq_file, read_comment=False):
         root_name = read[0].split('_')[0]
         if root_name in chrom_reads:
-            chrom_reads[root_name].append(read)
+            # root_name : [(header, seq, qual), ...]
+            chrom_reads[root_name].append(read) # read = (header, seq, qual)
     return chrom_reads
 
 def read_fasta(infile):
@@ -141,7 +142,7 @@ def read_fasta(infile):
         reads[read[0]] = read[1]
     return reads
 
-def read_fastq_file(seq_file):
+def read_fastq_file(seq_file, check):
     '''
     Takes a FASTQ file and returns a list of tuples
     In each tuple:
@@ -151,15 +152,18 @@ def read_fastq_file(seq_file):
         qual : str, quality line
         average_quals : float, average quality of that line
         seq_length : int, length of the sequence
+    Has a check mode where if it sees one read, it'll return True
     '''
     read_list = []
     for read in mm.fastx_read(seq_file, read_comment=False):
         split_name = read[0].split('_')
         name, seed = split_name[0], 0
         seq, qual = read[1], read[2]
+        if check:
+            return True
         avg_q = np.average([ord(x)-33 for x in qual])
         s_len = len(seq)
-        read_list.append((name, seed, seq, qual, avg_q, s_len))
+        read_list.append((read[0], seq, qual, avg_q, s_len))
     return read_list
 
 def make_consensus(Molecule, UMI_number, subreads):
@@ -171,12 +175,12 @@ def make_consensus(Molecule, UMI_number, subreads):
         fasta.write(read)
         # print(read)
         root_name = read[1:].split('_')[0]
-        raw = subreads[root_name]
+        raw = subreads[root_name] # [(header, seq, qual), ...], includes rootname_subread_n
         for entry in raw:
             subs.write('@' + entry[0] + '\n' + entry[1] + '\n+\n' + entry[2] + '\n')
     subs.close()
     fasta.close()
-    if len(read_fastq_file(subread_file)) > 0:
+    if read_fastq_file(subread_file, True):
         corrected_consensus, repeats, name, qual, raw, before, after = determine_consensus(str(UMI_number), fastaread_file, subread_file, path)
         return '>%s_%s_%s_%s_%s_%s|%s\n%s\n' %(name, str(qual), str(raw), str(repeats), str(before), str(after), str(UMI_number), corrected_consensus)
     else:
