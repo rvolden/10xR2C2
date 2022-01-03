@@ -1,4 +1,6 @@
 # 10xR2C2
+[![DOI](https://zenodo.org/badge/232209750.svg)](https://zenodo.org/badge/latestdoi/232209750)  
+
 Scripts for analyzing 10x R2C2 data
 
 Contents
