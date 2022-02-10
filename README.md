@@ -1,5 +1,7 @@
 # 10xR2C2
 [![Published in Genome Biology](https://img.shields.io/badge/Published%20in-Genome-Biology-blue.svg)](https://doi.org/10.1186/s13059-022-02615-z)
+[![DOI](https://zenodo.org/badge/232209750.svg)](https://zenodo.org/badge/latestdoi/232209750)  
+
 Scripts for analyzing 10x R2C2 data
 
 Contents
